@@ -78,7 +78,7 @@ def train_fn(train_loader, model, criterion, optimizer, epoch, scheduler, device
 
     return losses.avg
 
-
+from inference import inference_fn
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     # parser.add_argument("--partial", action='store_true')
@@ -136,6 +136,7 @@ if __name__ == "__main__":
     # optimizer
     # ====================================================
     optimizer_parameters = get_optimizer_params(model)
+    # AdamW : https://hiddenbeginner.github.io/deeplearning/paperreview/2019/12/29/paper_review_AdamW.html
     optimizer = AdamW(optimizer_parameters, lr=2e-5,
                       eps=1e-8, betas=(0.9, 0.999))
 
@@ -177,6 +178,17 @@ if __name__ == "__main__":
             elapsed = time.time() - start_time
             epoch_display.set_postfix(
                 avg_train_loss=f'{avg_train_loss:.4f}', time=f'{elapsed/60:.0f}m', Score=f'{score:.4f}')
+
+    # 예측
+    print(f'INFERENCE [{ModelCfg.MODEL_NAME}] MODEL.............')
+    test_dataset = ChemiDataset(ModelCfg, test, True)
+    test_loader = DataLoader(test_dataset, batch_size=ModelCfg.batch_size, shuffle=False, drop_last=False)
+    model = ChemoModel(config_path=None, pretrained=True)
+    state = torch.load(f"{ModelCfg.MODEL_PATH}{ModelCfg.MODEL_NAME.replace('/', '-')}_best.pth", map_location=torch.device('cpu'))
+    model.load_state_dict(state['model'])
+    # model = ChemoModel(ModelCfg, config_path=None, pretrained=False)
+    prediction = inference_fn(test_loader, model, device)
+    print(f'[{ModelCfg.MODEL_NAME}] predictions shape : ', np.array(prediction).shape)
 
     torch.cuda.empty_cache()
     gc.collect()
